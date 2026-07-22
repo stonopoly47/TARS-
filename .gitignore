@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+Keys.txt
+frontend/config.local.js

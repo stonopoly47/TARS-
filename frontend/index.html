@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TARS // Interface</title>
+  <meta name="description" content="TARS real-time voice interface" />
+  <meta name="theme-color" content="#05070a" />
+  <link rel="manifest" href="./manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./config.local.js" onerror="void 0"></script>
+</head>
+<body class="scanlines min-h-screen">
+  <div class="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-4 min-h-screen">
+
+    <!-- Header -->
+    <header class="panel corner-brackets px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div id="linkStatusDot" class="status-dot"></div>
+        <div>
+          <h1 class="hud-font text-xl md:text-2xl tracking-widest glow-text">T.A.R.S.</h1>
+          <p class="text-xs opacity-60 tracking-wide" id="linkStatusText">LINK: OFFLINE</p>
+        </div>
+      </div>
+      <div class="text-right text-xs opacity-70 hud-font tracking-wider">
+        <div>TACTICAL RESPONSE</div>
+        <div>ASSIST SYSTEM</div>
+      </div>
+    </header>
+
+    <!-- Connection panel -->
+    <section id="connectPanel" class="panel corner-brackets px-5 py-4 flex flex-col gap-3">
+      <h2 class="hud-font text-xs tracking-[0.2em] opacity-70">CONNECTION</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input id="lkUrl" type="text" placeholder="LiveKit URL (wss://...)"
+          class="px-3 py-2 text-sm w-full" autocomplete="off" />
+        <input id="lkToken" type="password" placeholder="Access token"
+          class="px-3 py-2 text-sm w-full" autocomplete="off" />
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="connectBtn" class="btn px-4 py-2 text-xs">CONNECT</button>
+        <button id="disconnectBtn" class="btn btn-danger px-4 py-2 text-xs" disabled>DISCONNECT</button>
+        <label class="flex items-center gap-2 text-xs opacity-70 ml-auto">
+          <input id="muteToggle" type="checkbox" class="accent-[#ffb000]" />
+          MUTE MIC
+        </label>
+      </div>
+      <p class="text-[11px] opacity-40 leading-relaxed">
+        Paste a LiveKit server URL and a room access token (mint one with the LiveKit CLI or
+        your own token server, using the same room the <code>backend/agent.py</code> worker
+        joins). Credentials are only kept in memory for this tab.
+      </p>
+    </section>
+
+    <!-- Main HUD -->
+    <main class="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
+
+      <!-- Left: visualizer + params -->
+      <div class="md:col-span-2 flex flex-col gap-4">
+        <div class="panel corner-brackets p-4 flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <h2 class="hud-font text-xs tracking-[0.2em] opacity-70">AUDIO</h2>
+            <span id="speakerState" class="text-xs hud-font tracking-wider opacity-70">IDLE</span>
+          </div>
+          <div class="h-28 tars-block">
+            <canvas id="visualizer" width="400" height="140"></canvas>
+          </div>
+          <div class="flex items-center justify-between text-[11px] opacity-60">
+            <span>MIC INPUT</span>
+            <span id="micLevelLabel">0%</span>
+          </div>
+          <div class="param-bar"><div id="micLevelBar" style="width:0%"></div></div>
+        </div>
+
+        <div class="panel corner-brackets p-4 flex flex-col gap-3">
+          <h2 class="hud-font text-xs tracking-[0.2em] opacity-70">PARAMETERS</h2>
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span>HUMOR</span>
+              <span id="humorValue">75%</span>
+            </div>
+            <div class="param-bar"><div id="humorBar" style="width:75%"></div></div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span>HONESTY</span>
+              <span id="honestyValue">90%</span>
+            </div>
+            <div class="param-bar"><div id="honestyBar" style="width:90%"></div></div>
+          </div>
+          <p class="text-[11px] opacity-40">
+            Say something like "drop humor to 50 percent" — TARS updates these live.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: transcript console -->
+      <div class="md:col-span-3 panel corner-brackets p-4 flex flex-col min-h-[360px]">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="hud-font text-xs tracking-[0.2em] opacity-70">TRANSCRIPT</h2>
+          <button id="clearBtn" class="text-[11px] opacity-50 hover:opacity-90">CLEAR</button>
+        </div>
+        <div id="transcript" class="flex-1 overflow-y-auto text-sm space-y-2 pr-1"></div>
+      </div>
+    </main>
+
+    <footer class="text-center text-[10px] opacity-30 py-2 hud-font tracking-widest">
+      COOPER STATION // ENDURANCE INTERFACE BUILD
+    </footer>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
