@@ -19,7 +19,7 @@ from livekit.agents import (
     metrics,
 )
 from livekit.agents.voice import MetricsCollectedEvent
-from livekit.plugins import anthropic, deepgram, elevenlabs, silero
+from livekit.plugins import deepgram, elevenlabs, openai, silero
 
 from prompt import DEFAULT_HONESTY, DEFAULT_HUMOR, TARS_GREETING, build_instructions
 
@@ -103,7 +103,12 @@ async def entrypoint(ctx: JobContext) -> None:
     session = AgentSession(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(model="nova-3"),
-        llm=anthropic.LLM(model="claude-3-5-sonnet-latest"),
+        # Claude via OpenRouter (OpenAI-compatible API).
+        llm=openai.LLM(
+            model=os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4.5"),
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            base_url="https://openrouter.ai/api/v1",
+        ),
         tts=elevenlabs.TTS(
             api_key=os.getenv("ELEVENLABS_API_KEY"),
             voice_id=os.getenv("ELEVENLABS_VOICE_ID") or elevenlabs.DEFAULT_VOICE_ID,
