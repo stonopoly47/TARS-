@@ -1,8 +1,10 @@
 """TARS voice agent entrypoint (LiveKit Agents SDK)."""
 
+import asyncio
 import json
 import logging
 import os
+import uuid
 
 from dotenv import load_dotenv
 
@@ -18,7 +20,7 @@ from livekit.agents import (
     inference,
     metrics,
 )
-from livekit.agents.voice import MetricsCollectedEvent
+from livekit.agents.voice import MetricsCollectedEvent, UserInputTranscribedEvent
 from livekit.plugins import deepgram, elevenlabs, openai, silero
 
 from prompt import DEFAULT_HONESTY, DEFAULT_HUMOR, TARS_GREETING, build_instructions
@@ -27,6 +29,13 @@ load_dotenv()
 
 logger = logging.getLogger("tars-agent")
 logger.setLevel(logging.INFO)
+
+# Matches the topic/attributes the LiveKit Agents room-output pipeline already
+# uses for TARS's own spoken captions, so the frontend's single text-stream
+# handler can display both sides without needing a second code path.
+TOPIC_TRANSCRIPTION = "lk.transcription"
+ATTRIBUTE_TRANSCRIPTION_SEGMENT_ID = "lk.segment_id"
+ATTRIBUTE_TRANSCRIPTION_FINAL = "lk.transcription_final"
 
 
 def prewarm(proc: JobProcess) -> None:
@@ -41,10 +50,36 @@ class TarsAgent(Agent):
         self._ctx = ctx
         self.humor = DEFAULT_HUMOR
         self.honesty = DEFAULT_HONESTY
+        self._user_transcript_segment_id = uuid.uuid4().hex
         super().__init__(instructions=build_instructions(self.humor, self.honesty))
 
     async def on_enter(self) -> None:
         await self.session.generate_reply(instructions=TARS_GREETING)
+
+    async def publish_user_transcript(self, ev: UserInputTranscribedEvent) -> None:
+        """Echo the user's own speech back as live captions (topic "lk.transcription",
+        tagged with their identity) so the frontend shows real-time confirmation that
+        they're being heard, instead of the transcript sitting empty until TARS replies.
+        """
+        remote = next(iter(self._ctx.room.remote_participants.values()), None)
+        if remote is None:
+            return
+        try:
+            writer = await self._ctx.room.local_participant.stream_text(
+                topic=TOPIC_TRANSCRIPTION,
+                sender_identity=remote.identity,
+                attributes={
+                    ATTRIBUTE_TRANSCRIPTION_SEGMENT_ID: self._user_transcript_segment_id,
+                    ATTRIBUTE_TRANSCRIPTION_FINAL: str(ev.is_final).lower(),
+                },
+            )
+            await writer.write(ev.transcript)
+            await writer.aclose()
+        except Exception:
+            logger.exception("failed to publish user transcript")
+        if ev.is_final:
+            # Next utterance gets a fresh segment id instead of appending to this line.
+            self._user_transcript_segment_id = uuid.uuid4().hex
 
     async def _publish_settings(self) -> None:
         payload = json.dumps(
@@ -134,7 +169,13 @@ async def entrypoint(ctx: JobContext) -> None:
     def _on_metrics_collected(ev: MetricsCollectedEvent) -> None:
         metrics.log_metrics(ev.metrics)
 
-    await session.start(room=ctx.room, agent=TarsAgent(ctx))
+    tars_agent = TarsAgent(ctx)
+
+    @session.on("user_input_transcribed")
+    def _on_user_input_transcribed(ev: UserInputTranscribedEvent) -> None:
+        asyncio.create_task(tars_agent.publish_user_transcript(ev))
+
+    await session.start(room=ctx.room, agent=tars_agent)
 
 
 if __name__ == "__main__":
