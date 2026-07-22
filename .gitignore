@@ -4,3 +4,4 @@ __pycache__/
 .env
 Keys.txt
 frontend/config.local.js
+node_modules/

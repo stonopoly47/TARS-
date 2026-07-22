@@ -1,0 +1,8 @@
+{
+  "name": "tars-assistant",
+  "private": true,
+  "description": "Serverless token endpoint dependencies for the TARS frontend.",
+  "dependencies": {
+    "livekit-server-sdk": "^2.17.0"
+  }
+}
