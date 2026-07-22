@@ -105,7 +105,8 @@ async def entrypoint(ctx: JobContext) -> None:
         stt=deepgram.STT(model="nova-3"),
         llm=anthropic.LLM(model="claude-3-5-sonnet-latest"),
         tts=elevenlabs.TTS(
-            voice_id=os.getenv("ELEVENLABS_VOICE_ID") or None,
+            api_key=os.getenv("ELEVENLABS_API_KEY"),
+            voice_id=os.getenv("ELEVENLABS_VOICE_ID") or elevenlabs.DEFAULT_VOICE_ID,
             model=os.getenv("ELEVENLABS_MODEL_ID", "eleven_turbo_v2_5"),
         ),
         # Semantic turn detection: wait for the user to finish a complete thought before

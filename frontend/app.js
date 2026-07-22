@@ -27,8 +27,10 @@
     visualizer: el('visualizer'),
     micLevelBar: el('micLevelBar'),
     micLevelLabel: el('micLevelLabel'),
+    enableAudioBtn: el('enableAudioBtn'),
   };
 
+  const audioElements = new Set();
   let room = null;
   let audioCtx = null;
   let analyser = null;
@@ -69,6 +71,20 @@
   function setSpeakerState(text) {
     dom.speakerState.textContent = text;
   }
+
+  function showEnableAudioBanner() {
+    dom.enableAudioBtn.classList.remove('hidden');
+  }
+
+  function hideEnableAudioBanner() {
+    dom.enableAudioBtn.classList.add('hidden');
+  }
+
+  dom.enableAudioBtn.addEventListener('click', () => {
+    audioElements.forEach((elm) => elm.play().catch(() => {}));
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    hideEnableAudioBanner();
+  });
 
   function appendLine(kind, tag, text) {
     const wrap = document.createElement('div');
@@ -222,6 +238,11 @@
         audioEl.autoplay = true;
         audioEl.style.display = 'none';
         document.body.appendChild(audioEl);
+        audioElements.add(audioEl);
+        // Mobile browsers (notably iOS Safari) often block this programmatic
+        // play() since it isn't inside a synchronous click handler. Surface a
+        // manual "tap to enable audio" fallback instead of failing silently.
+        audioEl.play().catch(() => showEnableAudioBanner());
         try {
           bindVisualizerToTrack(track.mediaStreamTrack);
         } catch (e) {
@@ -232,7 +253,15 @@
     });
 
     r.on(RoomEvent.TrackUnsubscribed, (track) => {
-      track.detach().forEach((elm) => elm.remove());
+      track.detach().forEach((elm) => {
+        audioElements.delete(elm);
+        elm.remove();
+      });
+    });
+
+    r.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+      if (!r.canPlaybackAudio) showEnableAudioBanner();
+      else hideEnableAudioBanner();
     });
 
     r.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
@@ -299,6 +328,8 @@
       setSpeakerState('IDLE');
       appendLine('sys', 'SYS', 'Disconnected.');
       teardownAudio();
+      audioElements.clear();
+      hideEnableAudioBanner();
       dom.connectBtn.disabled = false;
       dom.disconnectBtn.disabled = true;
     });

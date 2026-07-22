@@ -29,6 +29,12 @@ token = (
             can_publish_data=True,
         )
     )
+    # Explicitly request the agent be dispatched into this room. LiveKit Cloud's
+    # hosted Agents run under explicit dispatch, so without this the worker never
+    # joins even though it's registered and idle.
+    .with_room_config(
+        api.RoomConfiguration(agents=[api.RoomAgentDispatch(agent_name="")])
+    )
     .with_ttl(timedelta(hours=ttl_hours))
     .to_jwt()
 )
