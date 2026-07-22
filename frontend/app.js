@@ -353,20 +353,47 @@
   }
 
   async function connect() {
-    const url = dom.lkUrl.value.trim();
-    const token = dom.lkToken.value.trim();
-    if (!url || !token) {
-      appendLine('sys', 'SYS', 'LiveKit URL and access token are both required.');
-      return;
-    }
-    try {
-      sessionStorage.setItem('tars_lk_url', url);
-    } catch (_) { /* ignore */ }
+    let url = dom.lkUrl.value.trim();
+    let token = dom.lkToken.value.trim();
 
     dom.connectBtn.disabled = true;
     setLinkState('connecting');
     liveSegments.clear();
     dom.transcript.innerHTML = '';
+
+    // No token typed/pasted/auto-filled: request one from the Netlify Function,
+    // which also explicitly (re-)dispatches TARS into the room. This is what
+    // makes a bare "open the site and hit Connect" work with zero setup.
+    if (!token) {
+      try {
+        appendLine('sys', 'SYS', 'Requesting access token...');
+        const identity = 'user-' + Math.random().toString(36).slice(2, 10);
+        const resp = await fetch(`/.netlify/functions/get_token?identity=${encodeURIComponent(identity)}`);
+        if (!resp.ok) throw new Error(`token endpoint returned ${resp.status}`);
+        const data = await resp.json();
+        url = data.url;
+        token = data.token;
+        dom.lkUrl.value = url;
+        dom.lkToken.value = token;
+      } catch (err) {
+        console.error(err);
+        appendLine('sys', 'SYS', `Could not fetch access token: ${err.message || err}`);
+        setLinkState('error');
+        dom.connectBtn.disabled = false;
+        return;
+      }
+    }
+
+    if (!url) {
+      appendLine('sys', 'SYS', 'LiveKit URL is required.');
+      setLinkState('error');
+      dom.connectBtn.disabled = false;
+      return;
+    }
+
+    try {
+      sessionStorage.setItem('tars_lk_url', url);
+    } catch (_) { /* ignore */ }
 
     room = new Room({ adaptiveStream: true, dynacast: true });
     wireRoomEvents(room);
