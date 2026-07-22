@@ -112,7 +112,17 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=elevenlabs.TTS(
             api_key=os.getenv("ELEVENLABS_API_KEY"),
             voice_id=os.getenv("ELEVENLABS_VOICE_ID") or elevenlabs.DEFAULT_VOICE_ID,
-            model=os.getenv("ELEVENLABS_MODEL_ID", "eleven_turbo_v2_5"),
+            model=os.getenv("ELEVENLABS_MODEL_ID", "eleven_flash_v2_5"),
+            # High stability + no style exaggeration keeps delivery flat and robotic
+            # rather than emotionally expressive; slightly elevated speed for a
+            # clipped, military cadence.
+            voice_settings=elevenlabs.VoiceSettings(
+                stability=0.85,
+                similarity_boost=0.80,
+                style=0.0,
+                speed=1.05,
+                use_speaker_boost=True,
+            ),
         ),
         # Semantic turn detection: wait for the user to finish a complete thought before
         # replying, rather than reacting to every pause. VAD still handles instant barge-in.
