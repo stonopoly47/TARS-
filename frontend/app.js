@@ -14,7 +14,10 @@
     lkToken: el('lkToken'),
     connectBtn: el('connectBtn'),
     disconnectBtn: el('disconnectBtn'),
-    muteToggle: el('muteToggle'),
+    micToggleBtn: el('micToggleBtn'),
+    micToggleIcon: el('micToggleIcon'),
+    micToggleLabel: el('micToggleLabel'),
+    micStatusText: el('micStatusText'),
     linkStatusDot: el('linkStatusDot'),
     linkStatusText: el('linkStatusText'),
     speakerState: el('speakerState'),
@@ -330,8 +333,11 @@
       teardownAudio();
       audioElements.clear();
       hideEnableAudioBanner();
+      setMicButtonState('off');
+      hideMicStatus();
       dom.connectBtn.disabled = false;
       dom.disconnectBtn.disabled = true;
+      dom.micToggleBtn.disabled = true;
     });
   }
 
@@ -400,26 +406,19 @@
 
     try {
       await room.connect(url, token);
-      await room.localParticipant.setMicrophoneEnabled(true);
-
-      const micPub = room.localParticipant.getTrackPublication
-        ? room.localParticipant.getTrackPublication(Track.Source.Microphone)
-        : null;
-      const micTrack = micPub?.track || [...room.localParticipant.audioTrackPublications.values()]
-        .find((p) => p.source === Track.Source.Microphone)?.track;
-      if (micTrack?.mediaStreamTrack) {
-        bindMicMeter(micTrack.mediaStreamTrack);
-      }
-
       appendLine('sys', 'SYS', `Connected as ${room.localParticipant.identity}.`);
       dom.disconnectBtn.disabled = false;
+      dom.micToggleBtn.disabled = false;
+      // Mic access is requested separately via the MIC toggle (see enableMic()),
+      // not automatically here — a failed mic permission used to tear down the
+      // whole room connection, which meant one denied prompt required a full
+      // reconnect just to retry. Now the room stays up either way.
+      hideMicStatus();
+      await enableMic();
     } catch (err) {
       console.error(err);
       setLinkState('error');
       appendLine('sys', 'SYS', `Connection failed: ${err.message || err}`);
-      // room.connect() may have already succeeded before a later step (e.g. mic
-      // permission) failed — tear it down fully so we don't leak a live connection
-      // with no way to reach it from the UI.
       if (room) {
         try { await room.disconnect(); } catch (_) {}
         room = null;
@@ -437,12 +436,84 @@
     }
   }
 
+  function setMicButtonState(state) {
+    // state: 'off' | 'on' | 'pending'
+    dom.micToggleBtn.classList.remove('btn-danger');
+    if (state === 'on') {
+      dom.micToggleIcon.textContent = String.fromCodePoint(0x1f3a4);
+      dom.micToggleLabel.textContent = 'MIC: ON';
+      dom.micToggleBtn.classList.add('btn-danger');
+    } else if (state === 'pending') {
+      dom.micToggleIcon.textContent = String.fromCodePoint(0x1f399);
+      dom.micToggleLabel.textContent = 'REQUESTING MIC...';
+    } else {
+      dom.micToggleIcon.textContent = String.fromCodePoint(0x1f3a4);
+      dom.micToggleLabel.textContent = 'ENABLE MIC';
+    }
+  }
+
+  function showMicStatus(text) {
+    dom.micStatusText.textContent = text;
+    dom.micStatusText.classList.remove('hidden');
+  }
+
+  function hideMicStatus() {
+    dom.micStatusText.classList.add('hidden');
+  }
+
+  async function enableMic() {
+    if (!room) return;
+    setMicButtonState('pending');
+    dom.micToggleBtn.disabled = true;
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+      const micPub = room.localParticipant.getTrackPublication
+        ? room.localParticipant.getTrackPublication(Track.Source.Microphone)
+        : null;
+      const micTrack = micPub?.track || [...room.localParticipant.audioTrackPublications.values()]
+        .find((p) => p.source === Track.Source.Microphone)?.track;
+      if (micTrack?.mediaStreamTrack) bindMicMeter(micTrack.mediaStreamTrack);
+      setMicButtonState('on');
+      hideMicStatus();
+      appendLine('sys', 'SYS', 'Microphone enabled.');
+    } catch (err) {
+      console.error(err);
+      setMicButtonState('off');
+      showMicStatus(
+        `Mic access denied: ${err.message || err}. Check your browser's site permissions and tap ENABLE MIC to retry.`
+      );
+      appendLine('sys', 'SYS', `Microphone request failed: ${err.message || err}`);
+    } finally {
+      dom.micToggleBtn.disabled = false;
+    }
+  }
+
+  async function disableMic() {
+    if (!room) return;
+    try {
+      await room.localParticipant.setMicrophoneEnabled(false);
+    } catch (err) {
+      console.error(err);
+    }
+    if (micSource) {
+      try { micSource.disconnect(); } catch (_) {}
+      micSource = null;
+    }
+    micAnalyser = null;
+    dom.micLevelBar.style.width = '0%';
+    dom.micLevelLabel.textContent = '0%';
+    setMicButtonState('off');
+  }
+
   dom.connectBtn.addEventListener('click', connect);
   dom.disconnectBtn.addEventListener('click', disconnect);
 
-  dom.muteToggle.addEventListener('change', () => {
-    if (room) {
-      room.localParticipant.setMicrophoneEnabled(!dom.muteToggle.checked);
+  dom.micToggleBtn.addEventListener('click', () => {
+    const isOn = room?.localParticipant?.isMicrophoneEnabled;
+    if (isOn) {
+      disableMic();
+    } else {
+      enableMic();
     }
   });
 

@@ -47,11 +47,11 @@
       <div class="flex flex-wrap items-center gap-3">
         <button id="connectBtn" class="btn px-4 py-2 text-xs">CONNECT</button>
         <button id="disconnectBtn" class="btn btn-danger px-4 py-2 text-xs" disabled>DISCONNECT</button>
-        <label class="flex items-center gap-2 text-xs opacity-70 ml-auto">
-          <input id="muteToggle" type="checkbox" class="accent-[#ffb000]" />
-          MUTE MIC
-        </label>
+        <button id="micToggleBtn" class="btn px-4 py-2 text-xs ml-auto" disabled>
+          <span id="micToggleIcon">&#127908;</span> <span id="micToggleLabel">MIC: OFF</span>
+        </button>
       </div>
+      <p id="micStatusText" class="text-[11px] hidden"></p>
       <p class="text-[11px] opacity-40 leading-relaxed">
         Leave both fields blank and hit Connect to auto-request access. Only paste your own
         URL/token here if you need to point at a different LiveKit project or room.
