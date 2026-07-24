@@ -12,6 +12,7 @@
   const dom = {
     lkUrl: el('lkUrl'),
     lkToken: el('lkToken'),
+    accessPin: el('accessPin'),
     connectBtn: el('connectBtn'),
     disconnectBtn: el('disconnectBtn'),
     micToggleBtn: el('micToggleBtn'),
@@ -47,6 +48,8 @@
   try {
     const savedUrl = sessionStorage.getItem('tars_lk_url');
     if (savedUrl) dom.lkUrl.value = savedUrl;
+    const savedPin = sessionStorage.getItem('tars_pin');
+    if (savedPin) dom.accessPin.value = savedPin;
   } catch (_) { /* storage unavailable */ }
 
   // ---- optional local dev config (frontend/config.local.js, gitignored) ----
@@ -367,20 +370,25 @@
     liveSegments.clear();
     dom.transcript.innerHTML = '';
 
-    // No token typed/pasted/auto-filled: request one from the Netlify Function,
-    // which also explicitly (re-)dispatches TARS into the room. This is what
-    // makes a bare "open the site and hit Connect" work with zero setup.
+    // No token typed/pasted in the advanced section: request one from the Netlify
+    // Function (gated by passcode), which also explicitly (re-)dispatches TARS
+    // into the room. This is what makes "enter passcode, hit Connect" work.
     if (!token) {
+      const pin = dom.accessPin.value.trim();
       try {
         appendLine('sys', 'SYS', 'Requesting access token...');
         const identity = 'user-' + Math.random().toString(36).slice(2, 10);
-        const resp = await fetch(`/.netlify/functions/get_token?identity=${encodeURIComponent(identity)}`);
+        const qs = new URLSearchParams({ identity, pin });
+        const resp = await fetch(`/.netlify/functions/get_token?${qs.toString()}`);
+        if (resp.status === 401) throw new Error('Incorrect passcode');
+        if (resp.status === 429) throw new Error('Too many attempts — wait a minute and try again');
         if (!resp.ok) throw new Error(`token endpoint returned ${resp.status}`);
         const data = await resp.json();
         url = data.url;
         token = data.token;
-        dom.lkUrl.value = url;
-        dom.lkToken.value = token;
+        try {
+          sessionStorage.setItem('tars_pin', pin);
+        } catch (_) { /* ignore */ }
       } catch (err) {
         console.error(err);
         appendLine('sys', 'SYS', `Could not fetch access token: ${err.message || err}`);

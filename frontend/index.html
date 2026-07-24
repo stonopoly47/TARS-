@@ -38,12 +38,17 @@
     <!-- Connection panel -->
     <section id="connectPanel" class="panel corner-brackets px-5 py-4 flex flex-col gap-3">
       <h2 class="hud-font text-xs tracking-[0.2em] opacity-70">CONNECTION</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <input id="lkUrl" type="text" placeholder="LiveKit URL (wss://...)"
-          class="px-3 py-2 text-sm w-full" autocomplete="off" />
-        <input id="lkToken" type="password" placeholder="Access token"
-          class="px-3 py-2 text-sm w-full" autocomplete="off" />
-      </div>
+      <input id="accessPin" type="password" placeholder="Passcode" inputmode="numeric"
+        class="px-3 py-2 text-sm w-full" autocomplete="off" />
+      <details class="text-[11px] opacity-70">
+        <summary class="cursor-pointer select-none">Advanced: custom URL/token</summary>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+          <input id="lkUrl" type="text" placeholder="LiveKit URL (wss://...)"
+            class="px-3 py-2 text-sm w-full" autocomplete="off" />
+          <input id="lkToken" type="password" placeholder="Access token"
+            class="px-3 py-2 text-sm w-full" autocomplete="off" />
+        </div>
+      </details>
       <div class="flex flex-wrap items-center gap-3">
         <button id="connectBtn" class="btn px-4 py-2 text-xs">CONNECT</button>
         <button id="disconnectBtn" class="btn btn-danger px-4 py-2 text-xs" disabled>DISCONNECT</button>
@@ -53,9 +58,9 @@
       </div>
       <p id="micStatusText" class="text-[11px] hidden"></p>
       <p class="text-[11px] opacity-40 leading-relaxed">
-        Leave both fields blank and hit Connect to auto-request access. Only paste your own
-        URL/token here if you need to point at a different LiveKit project or room.
-        Credentials are only kept in memory for this tab.
+        Enter the passcode and hit Connect. A pasted URL/token above bypasses the passcode
+        entirely (for pointing at a different project/room). Nothing here is stored beyond
+        this browser tab's memory.
       </p>
     </section>
 
